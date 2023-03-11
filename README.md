@@ -1,7 +1,15 @@
 # fun-lang
 
 I created this fun programming language to gain a better understanding of how programming languages work.
-its very basic , as of writing this README it can do addition , substaction, multiplication,divisiton
+its very basic , as of writing this README it can 
+- addition
+- subtraction
+- multiplication
+- division
+- ( ) based execution
 
-https://user-images.githubusercontent.com/109351887/224468007-f7b92f92-6aa0-4bf1-bf6b-4da6497d464c.mp4
+https://user-images.githubusercontent.com/109351887/224492244-29fdf99f-c4d1-4118-9bb4-c18524200bca.mp4
+
+
+
 
