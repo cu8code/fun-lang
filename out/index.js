@@ -10,7 +10,9 @@ var token_type;
     token_type[token_type["NUMBER"] = 0] = "NUMBER";
     token_type[token_type["PLUS"] = 1] = "PLUS";
     token_type[token_type["MINUS"] = 2] = "MINUS";
-    token_type[token_type["EOF"] = 3] = "EOF";
+    token_type[token_type["DIV"] = 3] = "DIV";
+    token_type[token_type["MULTIPLY"] = 4] = "MULTIPLY";
+    token_type[token_type["EOF"] = 5] = "EOF";
 })(token_type = exports.token_type || (exports.token_type = {}));
 function create_token(literal, type, line) {
     return {
@@ -51,6 +53,14 @@ function lexer(s) {
                 break;
             case ('-'):
                 final.push(create_token("-", token_type.MINUS, line_number));
+                forward();
+                break;
+            case ('*'):
+                final.push(create_token("*", token_type.MULTIPLY, line_number));
+                forward();
+                break;
+            case ('/'):
+                final.push(create_token("/", token_type.DIV, line_number));
                 forward();
                 break;
             default:
@@ -95,6 +105,22 @@ function create_ast_term(lhs, rhs, toke_of_type) {
             type: "term"
         };
     }
+    else if (toke_of_type === token_type.DIV) {
+        return {
+            lhs,
+            rhs,
+            operator: "/",
+            type: "term"
+        };
+    }
+    else if (toke_of_type === token_type.MULTIPLY) {
+        return {
+            lhs,
+            rhs,
+            operator: "*",
+            type: "term"
+        };
+    }
     throw new Error("E");
 }
 function parser(t) {
@@ -127,7 +153,7 @@ function parser(t) {
     }
     function term() {
         let ex = primary();
-        while (match([token_type.PLUS, token_type.MINUS])) {
+        while (match([token_type.PLUS, token_type.MINUS, token_type.DIV, token_type.MULTIPLY])) {
             const current_val = previous();
             const right = primary();
             ex = create_ast_term(ex, right, current_val.type);
@@ -146,6 +172,12 @@ function visitor(ast) {
     function substract(a, b) {
         return a - b;
     }
+    function multiply(a, b) {
+        return a * b;
+    }
+    function div(a, b) {
+        return a / b;
+    }
     if (ast.type === "literal") {
         return ast.literal;
     }
@@ -155,6 +187,12 @@ function visitor(ast) {
         }
         else if (ast.operator === "-") {
             return substract(visitor(ast.lhs), visitor(ast.rhs));
+        }
+        else if (ast.operator === "/") {
+            return div(visitor(ast.lhs), visitor(ast.rhs));
+        }
+        else if (ast.operator === "*") {
+            return multiply(visitor(ast.lhs), visitor(ast.rhs));
         }
     }
     throw new Error("their was some errro");

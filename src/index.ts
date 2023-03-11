@@ -2,7 +2,7 @@ import readline from 'readline-sync';
 
 export enum token_type {
   NUMBER,
-  PLUS, MINUS,
+  PLUS, MINUS, DIV, MULTIPLY,
   EOF
 }
 
@@ -62,6 +62,16 @@ function lexer(s: string[]): token[] {
         forward();
         break;
 
+      case ('*'):
+        final.push(create_token("*", token_type.MULTIPLY, line_number));
+        forward();
+        break;
+
+      case ('/'):
+        final.push(create_token("/", token_type.DIV, line_number));
+        forward();
+        break;
+
       default:
         if (is_number(get_value())) {
           let res: string = "";
@@ -114,7 +124,7 @@ type expr = expr_term | expr_literal;
 type expr_term = {
   lhs: expr,
   rhs: expr,
-  operator: "+" | "-"
+  operator: "+" | "-" | "/" | "*"
   type: "term"
 }
 
@@ -144,6 +154,22 @@ function create_ast_term(lhs: expr, rhs: expr, toke_of_type: token_type.PLUS | t
       lhs,
       rhs,
       operator: "-",
+      type: "term"
+    }
+  }
+  else if (toke_of_type === token_type.DIV) {
+    return {
+      lhs,
+      rhs,
+      operator: "/",
+      type: "term"
+    }
+  }
+  else if (toke_of_type === token_type.MULTIPLY) {
+    return {
+      lhs,
+      rhs,
+      operator: "*",
       type: "term"
     }
   }
@@ -183,7 +209,7 @@ function parser(t: token[]): expr {
 
   function term(): expr {
     let ex: expr = primary();
-    while (match([token_type.PLUS, token_type.MINUS])) {
+    while (match([token_type.PLUS, token_type.MINUS,token_type.DIV,token_type.MULTIPLY])) {
       const current_val: token = previous();
       const right: expr = primary();
       ex = create_ast_term(
@@ -208,9 +234,19 @@ function visitor(ast: expr): number {
   function sum(a: number, b: number) {
     return a + b;
   }
+
   function substract(a: number, b: number) {
     return a - b;
   }
+
+  function multiply(a:number,b:number){
+    return a * b
+  }
+
+  function div(a:number,b:number){
+    return a / b
+  }
+
   if (ast.type === "literal") {
     return ast.literal;
   } else if (ast.type === "term") {
@@ -220,8 +256,14 @@ function visitor(ast: expr): number {
     else if (ast.operator === "-") {
       return substract(visitor(ast.lhs), visitor(ast.rhs))
     }
+    else if (ast.operator === "/") {
+      return div(visitor(ast.lhs), visitor(ast.rhs))
+    }
+    else if (ast.operator === "*") {
+      return multiply(visitor(ast.lhs), visitor(ast.rhs))
+    }
   }
-  throw new Error("their was some errro");
+  throw new Error("man yout fucked-up");
 }
 
 function main(): void {
