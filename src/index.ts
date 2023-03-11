@@ -3,6 +3,7 @@ import readline from 'readline-sync';
 export enum token_type {
   NUMBER,
   PLUS, MINUS, DIV, MULTIPLY,
+  LEFT_PAREN, RIGHT_PAREN,
   EOF
 }
 
@@ -72,6 +73,16 @@ function lexer(s: string[]): token[] {
         forward();
         break;
 
+      case ('('):
+        final.push(create_token("(", token_type.LEFT_PAREN, line_number));
+        forward();
+        break;
+
+      case (')'):
+        final.push(create_token(")", token_type.RIGHT_PAREN, line_number));
+        forward();
+        break;
+
       default:
         if (is_number(get_value())) {
           let res: string = "";
@@ -119,7 +130,7 @@ function lexer(s: string[]): token[] {
 //                | "(" expression ")" ;
 //
 
-type expr = expr_term | expr_literal;
+type expr = expr_term | expr_literal | expr_paren;
 
 type expr_term = {
   lhs: expr,
@@ -133,10 +144,26 @@ type expr_literal = {
   type: "literal"
 }
 
+type expr_paren = {
+  start: "("
+  end: ")"
+  exp: expr
+  type: "paren"
+}
+
 function create_ast_literal(literal: string): expr_literal {
   return {
     literal: Number(literal) as number,
     type: "literal"
+  }
+}
+
+function create_ast_paren(exp: expr): expr_paren {
+  return {
+    type: "paren",
+    start: "(",
+    end: ")",
+    exp: exp
   }
 }
 
@@ -180,7 +207,6 @@ function parser(t: token[]): expr {
   let cursor: number = 0;
 
   function forward(): number { return ++cursor; }
-  function get_value(): token { return t[cursor] }
   function has_next(): boolean { return cursor < t.length }
   function previous(): token { return t[cursor - 1] }
   function advance(): token {
@@ -201,15 +227,30 @@ function parser(t: token[]): expr {
     return false;
   }
 
-  function primary(): expr_literal {
-    const literal: string = get_value().literal;
-    advance();
-    return create_ast_literal(literal);
+  function consume(t: token_type, mess: string) {
+    if (has_next()) {
+      if (t === peek().type) {
+        advance()
+      }
+    }
+    return
+  }
+
+  function primary(): expr_literal | expr_paren {
+    if (match([token_type.NUMBER])) {
+      return create_ast_literal(previous().literal);
+    }
+    while (match([token_type.LEFT_PAREN])) {
+      const exp: expr = expression()
+      consume(token_type.RIGHT_PAREN, "expect ')' after expression")
+      return create_ast_paren(exp);
+    }
+    throw new Error("something went worong")
   }
 
   function term(): expr {
     let ex: expr = primary();
-    while (match([token_type.PLUS, token_type.MINUS,token_type.DIV,token_type.MULTIPLY])) {
+    while (match([token_type.PLUS, token_type.MINUS, token_type.DIV, token_type.MULTIPLY])) {
       const current_val: token = previous();
       const right: expr = primary();
       ex = create_ast_term(
@@ -230,7 +271,7 @@ function parser(t: token[]): expr {
 }
 
 
-function visitor(ast: expr): number {
+function evall(ast: expr): number {
   function sum(a: number, b: number) {
     return a + b;
   }
@@ -239,11 +280,11 @@ function visitor(ast: expr): number {
     return a - b;
   }
 
-  function multiply(a:number,b:number){
+  function multiply(a: number, b: number) {
     return a * b
   }
 
-  function div(a:number,b:number){
+  function div(a: number, b: number) {
     return a / b
   }
 
@@ -251,17 +292,20 @@ function visitor(ast: expr): number {
     return ast.literal;
   } else if (ast.type === "term") {
     if (ast.operator === "+") {
-      return sum(visitor(ast.lhs), visitor(ast.rhs))
+      return sum(evall(ast.lhs), evall(ast.rhs))
     }
     else if (ast.operator === "-") {
-      return substract(visitor(ast.lhs), visitor(ast.rhs))
+      return substract(evall(ast.lhs), evall(ast.rhs))
     }
     else if (ast.operator === "/") {
-      return div(visitor(ast.lhs), visitor(ast.rhs))
+      return div(evall(ast.lhs), evall(ast.rhs))
     }
     else if (ast.operator === "*") {
-      return multiply(visitor(ast.lhs), visitor(ast.rhs))
+      return multiply(evall(ast.lhs), evall(ast.rhs))
     }
+  }
+  if (ast.type === "paren") {
+    return evall(ast.exp)
   }
   throw new Error("man yout fucked-up");
 }
@@ -269,10 +313,10 @@ function visitor(ast: expr): number {
 function main(): void {
   // const data: String = "1";
   // const ast = parser(lexer(Array.from(data)));
-  while (true){
+  while (true) {
     const data = readline.question('REL> ');
     console.log(
-      visitor(
+      evall(
         parser(
           lexer(Array.from(data))
         )
